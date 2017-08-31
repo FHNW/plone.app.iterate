@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from Acquisition import aq_inner
 from Acquisition import aq_parent
-from plone.app.iterate import copier
 from plone.app.iterate import interfaces
 from plone.app.iterate.dexterity import ITERATE_RELATION_NAME
 from plone.app.iterate.dexterity.relation import StagingRelationValue
@@ -21,7 +20,11 @@ from zope.schema import getFieldsInOrder
 
 
 @implementer(interfaces.IObjectCopier)
-class ContentCopier(copier.ContentCopier):
+@component.adapter(interfaces.IIterateAware)
+class ContentCopier(object):
+
+    def __init__(self, context):
+        self.context = context
 
     def copyTo(self, container):
         context = aq_inner(self.context)
@@ -32,8 +35,6 @@ class ContentCopier(copier.ContentCopier):
         # create a relation
         relation = StagingRelationValue(wc_id)
         event._setRelation(context, ITERATE_RELATION_NAME, relation)
-        #
-        self._handleReferences(self.context, wc, 'checkout', relation)
         return wc, relation
 
     def merge(self):
@@ -41,9 +42,6 @@ class ContentCopier(copier.ContentCopier):
 
         # delete the working copy reference to the baseline
         wc_ref = self._deleteWorkingCopyRelation()
-
-        # reassemble references on the new baseline
-        self._handleReferences(baseline, self.context, 'checkin', wc_ref)
 
         # move the working copy to the baseline container, deleting the
         # baseline
@@ -171,3 +169,37 @@ class ContentCopier(copier.ContentCopier):
         # don't need to unlock the lock disappears with old baseline deletion
         notify(AfterCheckinEvent(new_baseline, checkin_message))
         return new_baseline
+
+    def _copyBaseline(self, container):
+        # copy the context from source to the target container
+        source_container = aq_parent(aq_inner(self.context))
+        clipboard = source_container.manage_copyObjects([self.context.getId()])
+        result = container.manage_pasteObjects(clipboard)
+
+        # get a reference to the working copy
+        target_id = result[0]['new_id']
+        target = container._getOb(target_id)
+        return target
+
+
+class ContainerCopier(ContentCopier):
+
+    def _copyBaseline(self, container):
+        from plone.app.iterate.interfaces import IBaseline
+        from zope.interface import alsoProvides
+        alsoProvides(self.context, IBaseline)
+        target = super(ContainerCopier, self)._copyBaseline(container)
+        target._initBTrees()
+        return target
+
+def object_copied(ob, event):
+    print ob.getId()
+    ob._initBTrees()
+    order = ob.getOrdering()
+    from zope.annotation.interfaces import IAnnotations
+    from persistent.list import PersistentList
+    ann = IAnnotations(ob)
+    ann[order.ORDER_KEY] = PersistentList()
+    import transaction
+    transaction.savepoint()
+    print(ob.objectIds())
