@@ -24,12 +24,14 @@
 from AccessControl import getSecurityManager
 from plone.app.iterate.browser.control import Control
 from plone.app.iterate.interfaces import ICheckinCheckoutPolicy
+from plone.app.iterate.testing import PLONEAPPITERATE_INTEGRATION_TESTING
 from plone.app.iterate.testing import PLONEAPPITERATEDEX_INTEGRATION_TESTING
 from plone.app.testing import login
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 from plone.app.testing import TEST_USER_NAME
 from Products.CMFCore.utils import getToolByName
+from plone.app.iterate.interfaces import CheckinException
 
 import unittest
 
@@ -104,6 +106,96 @@ class TestIterations(unittest.TestCase):
 
         history = self.repo.getHistory(doc2)
         self.assertEqual(len(history), 1)
+
+    def test_wcNewForwardReferencesCopied(self):
+        # ensure that new wc references are copied back to the baseline on
+        # checkin
+        doc = self.portal.docs.doc1
+        doc.addReference(self.portal.docs)
+        self.assertEqual(len(doc.getReferences('zebra')), 0)
+        wc = ICheckinCheckoutPolicy(doc).checkout(self.portal.workarea)
+        wc.addReference(self.portal.docs.doc2, 'zebra')
+        doc = ICheckinCheckoutPolicy(wc).checkin('updated')
+        self.assertEqual(len(doc.getReferences('zebra')), 1)
+
+    def test_wcNewBackwardReferencesCopied(self):
+        # ensure that new wc back references are copied back to the baseline on
+        # checkin
+
+        doc = self.portal.docs.doc1
+        self.assertEqual(len(doc.getBackReferences('zebra')), 0)
+        wc = ICheckinCheckoutPolicy(doc).checkout(self.portal.workarea)
+        self.portal.docs.doc2.addReference(wc, 'zebra')
+        self.assertEqual(len(wc.getBackReferences('zebra')), 1)
+        doc = ICheckinCheckoutPolicy(wc).checkin('updated')
+        self.assertEqual(len(doc.getBackReferences('zebra')), 1)
+
+    def test_baselineReferencesMaintained(self):
+        # ensure that baseline references are maintained when the object is
+        # checked in copies forward, bkw are not copied, but are maintained.
+
+        doc = self.portal.docs.doc1
+        doc.addReference(self.portal.docs, 'elephant')
+        self.portal.docs.doc2.addReference(doc)
+
+        wc = ICheckinCheckoutPolicy(doc).checkout(self.portal.workarea)
+
+        doc = ICheckinCheckoutPolicy(wc).checkin('updated')
+        self.assertEqual(len(doc.getReferences()), 1)
+        self.assertEqual(len(doc.getBackReferences()), 1)
+
+    def test_baselineBrokenReferencesRemoved(self):
+        # When the baseline has a reference to a deleted object, a
+        # checkout should not fail with a ReferenceException.
+
+        doc = self.portal.docs.doc1
+        doc.addReference(self.portal.docs.doc2, 'pony')
+        self.portal.docs._delOb('doc2')
+        # _delOb is low level enough that the reference does not get cleaned
+        # up.
+        self.assertEqual(len(doc.getReferences()), 1)
+
+        wc = ICheckinCheckoutPolicy(doc).checkout(self.portal.workarea)
+        # The working copy has one reference: its original.
+        self.assertEqual(len(wc.getReferences()), 1)
+        self.assertEqual(wc.getReferences()[0].id, 'doc1')
+
+        doc = ICheckinCheckoutPolicy(wc).checkin('updated')
+        # The checkin removes the broken reference.
+        self.assertEqual(len(doc.getReferences()), 0)
+
+    def test_baselineNoCopyReferences(self):
+        # ensure that custom state is maintained with the no copy adapter
+
+        # setup the named ref adapter
+        from zope import component
+        from Products.Archetypes.interfaces import IBaseObject
+        from plone.app.iterate import relation, interfaces
+        from plone.app.iterate.tests.utils import CustomReference
+
+        component.provideAdapter(
+            adapts=(IBaseObject,),
+            provides=interfaces.ICheckinCheckoutReference,
+            factory=relation.NoCopyReferenceAdapter,
+            name='zebra')
+
+        doc = self.portal.docs.doc1
+        ref = doc.addReference(
+            self.portal.docs, 'zebra', referenceClass=CustomReference)
+        ref.custom_state = 'hello world'
+
+        wc = ICheckinCheckoutPolicy(doc).checkout(self.portal.workarea)
+
+        self.assertEqual(len(wc.getReferences('zebra')), 0)
+
+        doc = ICheckinCheckoutPolicy(wc).checkin('updated')
+
+        self.assertEqual(len(doc.getReferences('zebra')), 1)
+
+        ref = doc.getReferenceImpl('zebra')[0]
+
+        self.assertTrue(hasattr(ref, 'custom_state'))
+        self.assertEqual(ref.custom_state, 'hello world')
 
     def test_folderOrder(self):
         """When an item is checked out and then back in, the original
@@ -207,3 +299,76 @@ class TestIterations(unittest.TestCase):
         from plone.app.iterate.interfaces import CheckoutException
         with self.assertRaises(CheckoutException):
             cancel()
+
+class TestIterations(unittest.TestCase):
+
+    layer = PLONEAPPITERATEDEX_INTEGRATION_TESTING
+
+    def setUp(self):
+        self.portal = self.layer['portal']
+        setRoles(self.portal, TEST_USER_ID, ['Manager'])
+
+        # make folder lockable
+        portal_types = getToolByName(self.portal, 'portal_types')
+        fti = portal_types['Folder']
+        behaviors = list(fti.behaviors)
+        behaviors.append('plone.app.lockingbehavior.behaviors.ILocking')
+        fti.behaviors = tuple(behaviors)
+
+        self.wf = self.portal.portal_workflow
+        self.wf.setChainForPortalTypes(('Document',), 'plone_workflow')
+
+        # add a folder with two documents in it
+        self.portal.invokeFactory('Folder', 'docs')
+        self.portal.docs.invokeFactory('Document', 'doc1')
+        self.portal.docs.invokeFactory('Document', 'doc2')
+
+        # add a working copy folder
+        self.portal.invokeFactory('Folder', 'workarea')
+
+        self.repo = self.portal.portal_repository
+
+    def test_wrong_reference(self):
+        basedoc = self.portal['docs']
+        basedoc.title = 'BASE'
+
+        # No working copy
+        policy_base = ICheckinCheckoutPolicy(basedoc)
+        self.assertIsNone(policy_base.getBaseline())
+        self.assertRaises(CheckinException, policy_base._getBaseline)
+
+        wcdoc = policy_base.checkout(self.portal['workarea'])
+        wcdoc.title = 'WCOPY'
+        policy_wc = ICheckinCheckoutPolicy(wcdoc)
+
+        self.assertEqual(policy_base.getWorkingCopy().title, 'WCOPY')
+        self.assertEqual(policy_wc.getBaseline().title, 'BASE')
+
+    def test_cancel_workingcopy(self):
+        basedoc = self.portal['docs']
+        workarea = self.portal['workarea']
+        policy_base = ICheckinCheckoutPolicy(basedoc)
+        wcdoc = policy_base.checkout(workarea)
+
+        #Cancel from BASE
+        self.assertIn('docs', workarea)
+        policy_base.cancelCheckout()
+        self.assertIn('docs',self.portal)
+        self.assertNotIn('docs', workarea)
+
+        #Cancel from Work-copy
+        wcdoc = policy_base.checkout(self.portal['workarea'])
+        policy_wc = ICheckinCheckoutPolicy(wcdoc)
+        self.assertIn('docs', workarea)
+        policy_wc.cancelCheckout()
+        self.assertIn('docs',self.portal)
+        self.assertNotIn('docs', workarea)
+
+    def test_no_recursive_wc(self):
+        wc = ICheckinCheckoutPolicy(self.portal['docs']).checkout(self.portal['workarea'])
+        wc.title = 'Changed in Working Copy'
+        self.assertEqual(len(wc.keys()), 0)
+        ICheckinCheckoutPolicy(wc).checkin('modified')
+        self.assertEqual(self.portal['docs'].title, 'Changed in Working Copy')
+        self.assertEqual(self.portal['docs'].keys(), ['doc1', 'doc2'])
+
