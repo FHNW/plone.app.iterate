@@ -43,6 +43,7 @@ from zope.lifecycleevent import ObjectMovedEvent
 import interfaces
 import pkg_resources
 
+
 try:
     pkg_resources.get_distribution('Products.Archetypes')
     from Products.Archetypes.Referenceable import Referenceable
@@ -233,6 +234,7 @@ class ContentCopier(object):
         source_container = aq_parent(aq_inner(self.context))
         clipboard = source_container.manage_copyObjects([self.context.getId()])
         result = container.manage_pasteObjects(clipboard)
+
 
         # get a reference to the working copy
         target_id = result[0]['new_id']

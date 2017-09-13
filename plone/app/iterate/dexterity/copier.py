@@ -5,7 +5,9 @@ from plone.app.iterate import interfaces
 from plone.app.iterate.dexterity import ITERATE_RELATION_NAME
 from plone.app.iterate.dexterity.relation import StagingRelationValue
 from plone.app.iterate.event import AfterCheckinEvent
+from plone.app.iterate.interfaces import IBaseline
 from plone.dexterity.utils import iterSchemata
+from plone.folder.default import DefaultOrdering
 from Products.CMFCore.utils import getToolByName
 from Products.DCWorkflow.DCWorkflow import DCWorkflowDefinition
 from z3c.relationfield import event
@@ -14,17 +16,26 @@ from ZODB.PersistentMapping import PersistentMapping
 from zope import component
 from zope.annotation.interfaces import IAnnotations
 from zope.event import notify
+from zope.interface import alsoProvides
 from zope.interface import implementer
 from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
 
 
+WC_ANNOTATION_READONLY = [DefaultOrdering.ORDER_KEY, DefaultOrdering.POS_KEY]
+
+
 @implementer(interfaces.IObjectCopier)
 @component.adapter(interfaces.IIterateAware)
 class ContentCopier(object):
-
     def __init__(self, context):
         self.context = context
+
+    def clear_annotations(self, ann):
+        """  Annotations.clear() doesn't work properly. Some elements remain in the list """
+        keys = list(ann.keys())
+        for k in keys:
+            del ann[k]
 
     def copyTo(self, container):
         context = aq_inner(self.context)
@@ -43,12 +54,10 @@ class ContentCopier(object):
         # delete the working copy reference to the baseline
         wc_ref = self._deleteWorkingCopyRelation()
 
-        # move the working copy to the baseline container, deleting the
-        # baseline
+        # move the working copy to the baseline container, deleting the baseline
         new_baseline = self._replaceBaseline(baseline)
 
-        # patch the working copy with baseline info not preserved during
-        # checkout
+        # patch the working copy with baseline info not preserved during checkout
         self._reassembleWorkingCopy(new_baseline, baseline)
 
         return new_baseline
@@ -87,8 +96,17 @@ class ContentCopier(object):
         wc_annotations = IAnnotations(self.context)
         baseline_annotations = IAnnotations(baseline)
 
-        baseline_annotations.clear()
-        baseline_annotations.update(wc_annotations)
+        # remove the items that are not in wc anymore
+        for item in baseline_annotations:
+            if item not in WC_ANNOTATION_READONLY and item not in wc_annotations:
+                del baseline_annotations[item]
+
+        # Copy all other values from wc
+        for item in wc_annotations:
+            if item not in WC_ANNOTATION_READONLY:
+                baseline_annotations[item] = wc_annotations[item]
+
+        self.clear_annotations(wc_annotations)
 
         # delete the working copy
         wc_container._delObject(wc_id)
@@ -175,7 +193,6 @@ class ContentCopier(object):
         source_container = aq_parent(aq_inner(self.context))
         clipboard = source_container.manage_copyObjects([self.context.getId()])
         result = container.manage_pasteObjects(clipboard)
-
         # get a reference to the working copy
         target_id = result[0]['new_id']
         target = container._getOb(target_id)
@@ -183,23 +200,14 @@ class ContentCopier(object):
 
 
 class ContainerCopier(ContentCopier):
-
     def _copyBaseline(self, container):
-        from plone.app.iterate.interfaces import IBaseline
-        from zope.interface import alsoProvides
         alsoProvides(self.context, IBaseline)
         target = super(ContainerCopier, self)._copyBaseline(container)
         target._initBTrees()
         return target
 
+
 def object_copied(ob, event):
-    print ob.getId()
-    ob._initBTrees()
-    order = ob.getOrdering()
-    from zope.annotation.interfaces import IAnnotations
-    from persistent.list import PersistentList
     ann = IAnnotations(ob)
-    ann[order.ORDER_KEY] = PersistentList()
-    import transaction
-    transaction.savepoint()
-    print(ob.objectIds())
+    del ann[DefaultOrdering.ORDER_KEY]
+    del ann[DefaultOrdering.POS_KEY]
