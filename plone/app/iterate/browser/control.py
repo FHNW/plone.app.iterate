@@ -43,7 +43,6 @@ class Control(BrowserView):
         """
         return IWorkingCopy.providedBy(self.context)
 
-
     def checkin_allowed(self):
         """Check if a checkin is allowed
         """

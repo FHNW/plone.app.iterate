@@ -58,7 +58,7 @@ class AnnotationsTestCase(unittest.TestCase):
         self.assertEqual(new_annotations['key2'], u'value1')
 
         obj_annotations = IAnnotations(self.s1)
-        self.assertEqual(obj_annotations['key1'],  u'value1')
+        self.assertEqual(obj_annotations['key1'], u'value1')
         self.assertFalse('key2' in obj_annotations)
 
         # Now, we do a checkin

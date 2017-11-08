@@ -89,7 +89,6 @@ class CheckinCheckoutPolicyAdapter(CheckinCheckoutBasePolicyAdapter):
             raise CheckinException('Working copy has too many references to origin')
         return refs[0]
 
-
     def getBaseline(self):
         try:
             return self._getBaseline()
