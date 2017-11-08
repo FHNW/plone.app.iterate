@@ -320,7 +320,7 @@ class TestIterations(unittest.TestCase):
         self.assertFalse(control.cancel_allowed())
 
 
-class TestIterations(unittest.TestCase):
+class TestMoreIterations(unittest.TestCase):
 
     layer = PLONEAPPITERATEDEX_INTEGRATION_TESTING
 
@@ -370,18 +370,18 @@ class TestIterations(unittest.TestCase):
         policy_base = ICheckinCheckoutPolicy(basedoc)
         wcdoc = policy_base.checkout(workarea)
 
-        #Cancel from BASE
+        # Cancel from BASE
         self.assertIn('docs', workarea)
         policy_base.cancelCheckout()
-        self.assertIn('docs',self.portal)
+        self.assertIn('docs', self.portal)
         self.assertNotIn('docs', workarea)
 
-        #Cancel from Work-copy
+        # Cancel from Work-copy
         wcdoc = policy_base.checkout(self.portal['workarea'])
         policy_wc = ICheckinCheckoutPolicy(wcdoc)
         self.assertIn('docs', workarea)
         policy_wc.cancelCheckout()
-        self.assertIn('docs',self.portal)
+        self.assertIn('docs', self.portal)
         self.assertNotIn('docs', workarea)
 
     def test_no_recursive_wc(self):
@@ -392,3 +392,4 @@ class TestIterations(unittest.TestCase):
         self.assertEqual(self.portal['docs'].title, 'Changed in Working Copy')
         self.assertEqual(self.portal['docs'].keys(), ['doc1', 'doc2'])
 
+# EOF

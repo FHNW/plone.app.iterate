@@ -203,7 +203,7 @@ def object_copied(ob, event):
         # Remove all references to children
         ids = list(ob.objectIds())
         for i in ids:
-             ob._delOb(i)
+            ob._delOb(i)
         ann = IAnnotations(ob)
         del ann[DefaultOrdering.ORDER_KEY]
         del ann[DefaultOrdering.POS_KEY]
