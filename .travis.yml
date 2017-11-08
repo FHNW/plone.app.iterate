@@ -1,0 +1,24 @@
+language: python
+sudo: false
+addons:
+  chrome: stable
+cache:
+  directories:
+  - eggs
+  - downloads
+python:
+  - 2.7.13
+matrix:
+  fast_finish: true
+install:
+  - pip install -r requirements.txt
+  - buildout -N buildout:download-cache=downloads code-analysis:return-status-codes=True annotate
+  - buildout -N buildout:download-cache=downloads code-analysis:return-status-codes=True
+script:
+  - bin/code-analysis
+  - bin/coverage run bin/test --all
+after_success:
+  - bin/coveralls
+notifications:
+  email:
+    - itconsense@gmail.com
