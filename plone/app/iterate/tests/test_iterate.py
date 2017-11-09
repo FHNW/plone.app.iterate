@@ -25,6 +25,7 @@
 
 from AccessControl import getSecurityManager
 from plone.app.iterate.browser.control import Control
+from plone.app.iterate.interfaces import CheckinException
 from plone.app.iterate.interfaces import ICheckinCheckoutPolicy
 from plone.app.iterate.testing import PLONEAPPITERATE_INTEGRATION_TESTING
 from plone.app.iterate.testing import PLONEAPPITERATEDEX_INTEGRATION_TESTING
@@ -32,8 +33,9 @@ from plone.app.testing import login
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 from plone.app.testing import TEST_USER_NAME
+from plone.Locking.interfaces import ITTWLockable
 from Products.CMFCore.utils import getToolByName
-from plone.app.iterate.interfaces import CheckinException
+from Products.Five.utilities.marker import mark
 
 import unittest
 
@@ -340,6 +342,8 @@ class TestMoreIterations(unittest.TestCase):
 
         # add a folder with two documents in it
         self.portal.invokeFactory('Folder', 'docs')
+        # ILockable(ITTWLockable) is a requirement for "locking behaviour" and avoid 'Could not adapt' error.
+        mark(self.portal.docs, ITTWLockable)
         self.portal.docs.invokeFactory('Document', 'doc1')
         self.portal.docs.invokeFactory('Document', 'doc2')
 
