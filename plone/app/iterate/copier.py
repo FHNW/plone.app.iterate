@@ -37,14 +37,11 @@ from Products.DCWorkflow.DCWorkflow import DCWorkflowDefinition
 from relation import WorkingCopyRelation
 from ZODB.PersistentMapping import PersistentMapping
 from zope import component
-from zope import interface
 from zope.annotation.interfaces import IAnnotations
 from zope.event import notify
 from zope.lifecycleevent import ObjectMovedEvent
 
 
-@interface.implementer(interfaces.IObjectCopier)
-@component.adapter(interfaces.IIterateAware)
 class ContentCopier(BaseContentCopier):
     """ Content copier for Archetypes """
 

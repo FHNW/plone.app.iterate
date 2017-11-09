@@ -25,13 +25,17 @@
 
 from AccessControl import getSecurityManager
 from plone.app.iterate.browser.control import Control
+from plone.app.iterate.interfaces import CheckinException
 from plone.app.iterate.interfaces import ICheckinCheckoutPolicy
 from plone.app.iterate.testing import PLONEAPPITERATE_INTEGRATION_TESTING
+from plone.app.iterate.testing import PLONEAPPITERATEDEX_INTEGRATION_TESTING
 from plone.app.testing import login
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 from plone.app.testing import TEST_USER_NAME
+from plone.locking.interfaces import ITTWLockable
 from Products.CMFCore.utils import getToolByName
+from Products.Five.utilities.marker import mark
 
 import unittest
 
@@ -148,12 +152,6 @@ class TestIterations(unittest.TestCase):
         wc = ICheckinCheckoutPolicy(doc).checkout(self.portal.workarea)
 
         doc = ICheckinCheckoutPolicy(wc).checkin('updated')
-
-        # TODO: This fails in Plone 4.1. The new optimized catalog lookups
-        # in the reference catalog no longer filter out non-existing reference
-        # objects. In both Plone 4.0 and 4.1 there's two references, one of
-        # them is a stale catalog entry in the reference catalog. The real fix
-        # is to figure out how the stale catalog entry gets in there
         self.assertEqual(len(doc.getReferences()), 1)
         self.assertEqual(len(doc.getBackReferences()), 1)
 
@@ -322,3 +320,81 @@ class TestIterations(unittest.TestCase):
     def test_control_cancel_allowed_with_no_policy(self):
         control = Control(self.portal, self.layer['request'])
         self.assertFalse(control.cancel_allowed())
+
+
+class TestMoreIterations(unittest.TestCase):
+
+    layer = PLONEAPPITERATEDEX_INTEGRATION_TESTING
+
+    def setUp(self):
+        self.portal = self.layer['portal']
+        setRoles(self.portal, TEST_USER_ID, ['Manager'])
+
+        # make folder lockable
+        portal_types = getToolByName(self.portal, 'portal_types')
+        fti = portal_types['Folder']
+        behaviors = list(fti.behaviors)
+        behaviors.append('plone.app.lockingbehavior.behaviors.ILocking')
+        fti.behaviors = tuple(behaviors)
+
+        self.wf = self.portal.portal_workflow
+        self.wf.setChainForPortalTypes(('Document',), 'plone_workflow')
+
+        # add a folder with two documents in it
+        self.portal.invokeFactory('Folder', 'docs')
+        # ILockable(ITTWLockable) is a requirement for "locking behaviour" and avoid 'Could not adapt' error.
+        mark(self.portal.docs, ITTWLockable)
+        self.portal.docs.invokeFactory('Document', 'doc1')
+        self.portal.docs.invokeFactory('Document', 'doc2')
+
+        # add a working copy folder
+        self.portal.invokeFactory('Folder', 'workarea')
+        mark(self.portal.workarea, ITTWLockable)
+        self.repo = self.portal.portal_repository
+
+    def test_wrong_reference(self):
+        basedoc = self.portal['docs']
+        basedoc.title = 'BASE'
+
+        # No working copy
+        policy_base = ICheckinCheckoutPolicy(basedoc)
+        self.assertIsNone(policy_base.getBaseline())
+        self.assertRaises(CheckinException, policy_base._getBaseline)
+
+        wcdoc = policy_base.checkout(self.portal['workarea'])
+        wcdoc.title = 'WCOPY'
+        policy_wc = ICheckinCheckoutPolicy(wcdoc)
+
+        self.assertEqual(policy_base.getWorkingCopy().title, 'WCOPY')
+        self.assertEqual(policy_wc.getBaseline().title, 'BASE')
+
+    def test_cancel_workingcopy(self):
+        basedoc = self.portal['docs']
+        workarea = self.portal['workarea']
+        policy_base = ICheckinCheckoutPolicy(basedoc)
+        wcdoc = policy_base.checkout(workarea)
+        mark(workarea.docs, ITTWLockable)
+
+        # Cancel from BASE
+        self.assertIn('docs', workarea)
+        policy_base.cancelCheckout()
+        self.assertIn('docs', self.portal)
+        self.assertNotIn('docs', workarea)
+
+        # Cancel from Work-copy
+        wcdoc = policy_base.checkout(self.portal['workarea'])
+        policy_wc = ICheckinCheckoutPolicy(wcdoc)
+        self.assertIn('docs', workarea)
+        policy_wc.cancelCheckout()
+        self.assertIn('docs', self.portal)
+        self.assertNotIn('docs', workarea)
+
+    def test_no_recursive_wc(self):
+        wc = ICheckinCheckoutPolicy(self.portal['docs']).checkout(self.portal['workarea'])
+        wc.title = 'Changed in Working Copy'
+        self.assertEqual(len(wc.keys()), 0)
+        ICheckinCheckoutPolicy(wc).checkin('modified')
+        self.assertEqual(self.portal['docs'].title, 'Changed in Working Copy')
+        self.assertEqual(self.portal['docs'].keys(), ['doc1', 'doc2'])
+
+# EOF

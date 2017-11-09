@@ -2,9 +2,9 @@
 bin/
 develop-eggs/
 include/
-lib/
+/lib*
 parts/
 var/
 *.egg-info
-*.pyc
-*.pyo
+*.py[co]
+pip-selfcheck.json
