@@ -35,12 +35,12 @@ logger = logging.getLogger('plone.app.iterate')
 
 try:
     import plone.app.relationfield  # noqa
-except ImportError:
+except ImportError:  # pragma: no cover
     logger.warn('Dexterity support for iterate is not available. '
                 'You must install plone.app.relationfield')
 
 
-try:
+try:   # pragma: no cover
     import plone.app.stagingbehavior  # noqa
     logger.error(
         'plone.app.stagingbehavior should NOT be installed with this version '
