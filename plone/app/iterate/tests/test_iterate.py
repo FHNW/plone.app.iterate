@@ -33,7 +33,7 @@ from plone.app.testing import login
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 from plone.app.testing import TEST_USER_NAME
-from plone.Locking.interfaces import ITTWLockable
+from plone.locking.interfaces import ITTWLockable
 from Products.CMFCore.utils import getToolByName
 from Products.Five.utilities.marker import mark
 
@@ -349,7 +349,7 @@ class TestMoreIterations(unittest.TestCase):
 
         # add a working copy folder
         self.portal.invokeFactory('Folder', 'workarea')
-
+        mark(self.portal.workarea, ITTWLockable)
         self.repo = self.portal.portal_repository
 
     def test_wrong_reference(self):
@@ -373,6 +373,7 @@ class TestMoreIterations(unittest.TestCase):
         workarea = self.portal['workarea']
         policy_base = ICheckinCheckoutPolicy(basedoc)
         wcdoc = policy_base.checkout(workarea)
+        mark(workarea.docs, ITTWLockable)
 
         # Cancel from BASE
         self.assertIn('docs', workarea)
