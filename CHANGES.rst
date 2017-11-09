@@ -4,12 +4,6 @@ Changelog
 3.3.6 (unreleased)
 ------------------
 
-- Nothing changed yet.
-
-
-3.3.4.post1 (2017-09-07)
-------------------------
-
 Breaking changes:
 
 - *add item here*
