@@ -12,6 +12,7 @@ from plone.app.iterate.interfaces import IObjectCopier
 from plone.app.iterate.util import get_storage
 from zope.component import adapter
 from zope.component import queryAdapter
+from zope.component import queryUtility
 from zope.event import notify
 
 
@@ -32,6 +33,26 @@ class CheckinCheckoutPolicyAdapter(CheckinCheckoutBasePolicyAdapter):
         # merge the object back to the baseline with a copier
         copier = queryAdapter(self.context, IObjectCopier)
         new_baseline = copier.merge()
+
+        from zc.relation.interfaces import ICatalog
+        from zope.intid.interfaces import IIntIds
+
+        catalog = queryUtility(ICatalog)
+        intids = queryUtility(IIntIds)
+        to_rels = catalog.findRelations({'to_id': intids.getId(baseline)})
+        print('to', to_rels)
+        from_rels = catalog.findRelations({'to_id': intids.getId(baseline)})
+        print('from', from_rels)
+
+        for relation in from_rels:
+            if relation is not None:
+                try:
+                    catalog.unindex(relation)
+                except KeyError:
+                    # The relation value has already been unindexed.
+                    pass
+
+
         # don't need to unlock the lock disappears with old baseline deletion
         notify(AfterCheckinEvent(new_baseline, checkin_message))
         return new_baseline

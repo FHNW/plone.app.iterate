@@ -108,6 +108,10 @@ class ContentCopier(BaseContentCopier):
         for item in orig_annotations:
             if item not in blacklist_annotations:
                 obj_dest_annotations[item] = orig_annotations[item]
+
+        # Set Layout
+        obj_dest.setLayout(obj_orig.getLayout())
+
         obj_dest.reindexObject()
 
     def _reassembleWorkingCopy(self, new_baseline, baseline):
