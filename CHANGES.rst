@@ -1,7 +1,7 @@
 Changelog
 =========
 
-3.3.5 (unreleased)
+3.3.7 (2018-02-05)
 ------------------
 
 - Nothing changed yet.
@@ -11,12 +11,22 @@ Changelog
 ------------------------
 
 Breaking changes:
+Bug fixes:
 
-- *add item here*
+- Use ``get_installer`` in general upgrade step.  [maurits]
 
-New features:
 
-- *add item here*
+3.3.6 (2017-11-24)
+------------------
+
+Bug fixes:
+
+- Fix #54: Cancelling a check out from the original deletes the original.
+  [jensens]
+
+
+3.3.5 (2017-09-08)
+------------------
 
 Bug fixes:
 

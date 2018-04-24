@@ -12,7 +12,7 @@ LONG_DESCRIPTION = (
 
 setup(
     name='plone.app.iterate',
-    version='3.3.5.dev0',
+    version='3.3.7',
     description='check-out/check-in staging for Plone',
     long_description=LONG_DESCRIPTION,
     classifiers=[
@@ -20,7 +20,7 @@ setup(
         'Framework :: Plone',
         'Framework :: Plone :: 5.1',
         'Framework :: Zope2',
-        'License :: OSI Approved :: GNU General Public License (GPL)',
+        'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
