@@ -1,14 +1,16 @@
 Changelog
 =========
 
+3.3.7.post1 (unreleased)
+------------------------
+
+
+- Fix unindexing of relation on checkin and cancel
+  [tomgross]
+
+
 3.3.7 (2018-02-05)
 ------------------
-
-- Nothing changed yet.
-
-
-3.3.4.post1 (2017-09-07)
-------------------------
 
 Breaking changes:
 Bug fixes:
