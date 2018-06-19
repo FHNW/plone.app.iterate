@@ -7,6 +7,7 @@ import doctest
 
 try:
     import Products.ATContentTypes
+    Products.ATContentTypes   # flake8
 except ImportError:
     HAS_AT = False
 else:

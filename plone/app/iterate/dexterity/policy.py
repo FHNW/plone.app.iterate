@@ -15,7 +15,6 @@ from zope.component import adapter
 from zope.component import queryAdapter
 from zope.component import queryUtility
 from zope.event import notify
-from zope.intid.interfaces import IIntIds
 
 
 @adapter(IDexterityIterateAware)

@@ -39,6 +39,7 @@ except ImportError:
     HAS_AT = False
 else:
     HAS_AT = True
+
     class CustomReference(Reference):
         pass
 
