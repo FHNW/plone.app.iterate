@@ -8,3 +8,5 @@ var/
 *.egg-info
 *.py[co]
 pip-selfcheck.json
+/eggs
+.Python
