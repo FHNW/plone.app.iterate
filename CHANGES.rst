@@ -20,18 +20,58 @@ Changelog
 
 3.3.7 (2018-02-05)
 ------------------
+.. You should *NOT* be adding new change log entries to this file.
+   You should create a file in the news directory instead.
+   For helpful instructions, please see:
+   https://github.com/plone/plone.releaser/blob/master/ADD-A-NEWS-ITEM.rst
 
-Breaking changes:
+.. towncrier release notes start
 
-- *add item here*
-
-New features:
-
-- *add item here*
+3.3.13 (2019-10-12)
+-------------------
 
 Bug fixes:
 
-- *add item here*
+
+- Explicitly load zcml of dependencies, instead of using ``includeDependencies``.
+  [maurits] (#2952)
+
+
+3.3.12 (2019-06-27)
+-------------------
+
+Bug fixes:
+
+
+- Add missing i18n:translate calls 
+  [erral] (#73)
+
+
+3.3.11 (2019-05-04)
+-------------------
+
+Bug fixes:
+
+
+- Made removing of versioning behaviors less strict (named vs dotted). [iham] (#71)
+
+
+3.3.10 (2018-10-31)
+-------------------
+
+Bug fixes:
+
+- Avoid test setup error for layer that uses AT when it's not installed
+  [davisagli]
+
+
+3.3.9 (2018-09-23)
+------------------
+
+Bug fixes:
+
+- Some Python 3 fixes.
+  [pbauer]
 
 
 3.3.8 (2018-06-18)

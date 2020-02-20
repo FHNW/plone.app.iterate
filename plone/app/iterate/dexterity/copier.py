@@ -148,9 +148,14 @@ class ContentCopier(BaseContentCopier):
         id = intids.getId(context)
         # ask catalog
         catalog = component.getUtility(ICatalog)
+
         relations = list(catalog.findRelations({'to_id': id}))
         relations = filter(lambda r: r.from_attribute == ITERATE_RELATION_NAME,
                            relations)
+
+        # do we have a baseline in our relations?
+        if relations and not len(relations) == 1:
+            raise interfaces.CheckinException('Baseline count mismatch')
 
         if not relations or relations[0] is None:
             raise interfaces.CheckinException('Working copy has no reference to the original object (baseline)')
