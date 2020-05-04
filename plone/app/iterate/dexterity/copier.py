@@ -150,8 +150,8 @@ class ContentCopier(BaseContentCopier):
         catalog = component.getUtility(ICatalog)
 
         relations = list(catalog.findRelations({'to_id': id}))
-        relations = filter(lambda r: r.from_attribute == ITERATE_RELATION_NAME,
-                           relations)
+        relations = list(filter(lambda r: r.from_attribute == ITERATE_RELATION_NAME,
+                           relations))
 
         # do we have a baseline in our relations?
         if relations and not len(relations) == 1:
