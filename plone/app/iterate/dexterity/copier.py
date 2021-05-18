@@ -99,10 +99,15 @@ class ContentCopier(BaseContentCopier):
         orig_annotations = IAnnotations(obj_orig)
         obj_dest_annotations = IAnnotations(obj_dest)
 
-        # remove the items that are not in wc anymore
+        items_to_del = []
+        # remove the items that are not in wc anymore.
+        # we don't delete it directly while iterating to avoid "RuntimeError: the bucket being iterated changed size".
         for item in obj_dest_annotations:
             if item not in blacklist_annotations and item not in orig_annotations:
-                del obj_dest_annotations[item]
+                items_to_del.append(item)
+
+        for item in items_to_del:
+            del obj_dest_annotations[item]
 
         # Copy all other values from wc
         for item in orig_annotations:
